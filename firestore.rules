@@ -1,0 +1,26 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Allow read/write access to all users for chat messages and users collections
+    match /messages/{document} {
+      allow read, write: if true;
+    }
+    
+    match /users/{document} {
+      allow read, write: if true;
+    }
+    
+    match /userPlans/{document} {
+      allow read, write: if true;
+    }
+    
+    match /plans/{document} {
+      allow read: if true;
+    }
+    
+    // Allow public read access to other collections
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}

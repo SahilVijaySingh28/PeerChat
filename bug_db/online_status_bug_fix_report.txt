@@ -1,0 +1,67 @@
+FlashChat Online Status Bug Fix Report
+=====================================
+
+Issue Description:
+------------------
+Friends were showing as "Offline" even when they were online in the FlashChat application. Users were seeing "Offline" status or incorrect last seen timestamps for their friends who were actually online.
+
+Root Cause Analysis:
+--------------------
+1. Firestore Query Limitation: The subscribeToFriends function was using Firestore's 'where('uid', 'in', friendIds)' query which has a limitation of only querying up to 10 documents at a time. If a user had more than 10 friends, not all friends would be properly tracked for real-time updates.
+
+2. Incomplete User Data Passing: Components were not properly passing all user properties to the OnlineStatus component, which meant it couldn't properly determine online status.
+
+3. Missing Size Classes: The OnlineStatus component was missing the sizeClasses and textSizeClasses definitions.
+
+Solution Implemented:
+---------------------
+1. Fixed Firestore Query Limitation:
+   - Updated the subscribeToFriends function to handle Firestore's 10-item query limit
+   - Implemented chunking of friend IDs into groups of 10
+   - Added logic to process each chunk separately and merge results
+   - Ensured all friends are properly tracked for real-time updates
+
+2. Enhanced User Data Passing:
+   - Modified conversation-list.jsx to pass all friend properties using the spread operator
+   - Updated right-sidebar.jsx to properly pass all user data to the OnlineStatus component
+   - Ensured the OnlineStatus component receives complete user information
+
+3. Fixed OnlineStatus Component:
+   - Added missing sizeClasses and textSizeClasses definitions
+   - Improved debugging output for better troubleshooting
+   - Enhanced logging to show all relevant user data for status determination
+
+Files Modified:
+---------------
+1. src/lib/userService.js
+   - Updated subscribeToFriends function to handle Firestore query limits
+
+2. src/components/conversation-list.jsx
+   - Enhanced data passing to OnlineStatus component
+   - Added spread operator to pass all friend properties
+
+3. src/components/right-sidebar.jsx
+   - Improved user data passing to OnlineStatus component
+
+4. src/components/ui/online-status.jsx
+   - Added missing size class definitions
+   - Enhanced debugging logs
+
+Verification Steps:
+-------------------
+1. Log in with multiple user accounts
+2. Verify that online friends show "Online" status
+3. Confirm that offline friends show appropriate "Offline" or last seen status
+4. Test with more than 10 friends to ensure all are properly tracked
+5. Check that privacy settings are respected for online status visibility
+
+Expected Results:
+-----------------
+- Friends who are online will correctly display "Online" status
+- Friends who are offline will show "Offline" or appropriate last seen timestamp
+- Real-time updates work properly for all friends regardless of list size
+- Privacy settings are respected for online status visibility
+
+Additional Notes:
+-----------------
+The fix ensures that the FlashChat application can properly handle users with large friend lists while maintaining real-time status updates and respecting user privacy preferences.

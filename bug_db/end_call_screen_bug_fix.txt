@@ -1,0 +1,115 @@
+# FlashChat - End Call Screen Bug Fix Report
+
+## Issue Description
+When a video call starts in FlashChat, the UI div with class "flex items-center justify-between p-4 border-b" appears to show in-call controls. However, when either user disconnects or ends the call, this call interface does not automatically hide/unmount on both ends.
+
+### Expected Behavior
+- When either user disconnects or ends the call, the call interface (including the header div) should automatically hide/unmount on both ends.
+
+### Actual Behavior
+- When the remote user disconnects, the local user's call UI stays visible.
+- The div does not hide/unmount even though logs show cleanup actions and endedByRemote: true.
+
+## Investigation & Resolution Attempts
+
+### Attempt 1: Initial Analysis
+- Observed console logs showing proper cleanup actions
+- Identified that React state controlling call visibility was not updating when Firestore call status changes to ended
+- Found that UI remains mounted even though Firestore reflects the call has ended
+
+### Attempt 2: State Management Improvements
+- Added hasEndedRef to track if call has already ended to prevent duplicate handling
+- Improved the call status listener to detect both status: 'ended' and endedAt timestamp
+- Enhanced communication with parent components through onClose and onCallEnd props
+
+### Attempt 3: Resource Cleanup Enhancement
+- Ensured proper cleanup of media resources and Firestore listeners
+- Added validation before closing RTCPeerConnection to prevent errors
+- Implemented proper unsubscription of all listeners
+
+### Attempt 4: Status Detection Refinement
+- Enhanced the listenForCallStatus function to properly detect when a call has ended
+- Added checks for both status === 'ended' and endedAt !== null conditions
+- Improved error handling and logging for debugging purposes
+
+## Root Cause Analysis
+
+The primary cause of the bug was a communication breakdown between the VideoCall component and its parent component (ChatThread). Specifically:
+
+1. **Missing Communication**: The endCall function in the VideoCall component was correctly cleaning up resources and updating Firestore, but it wasn't properly communicating with its parent component to hide the UI.
+
+2. **Incomplete Status Detection**: The call status listener wasn't properly detecting when a call had ended via the endedAt timestamp, only checking the status field.
+
+3. **Duplicate Handling**: Multiple status updates were being processed, causing race conditions and inconsistent state.
+
+4. **State Synchronization**: The isCallActive state was being set correctly, but the component itself was not being unmounted. The VideoCall component is rendered conditionally in chat-thread.jsx based on the showVideoCall state, but when endCall was called with endedByRemote: true, it only updated internal state without notifying the parent component to hide the UI.
+
+## Final Solution Implementation
+
+### Key Fixes Applied:
+
+1. **Enhanced State Management in VideoCall Component**:
+   - Added hasEndedRef ref to track if a call has already ended, preventing duplicate handling
+   - Improved the call status listener to detect both status: 'ended' and endedAt timestamp
+   - Added proper communication with parent components through onClose and onCallEnd props
+
+2. **Improved Call Status Detection**:
+   - Enhanced the listenForCallStatus function to properly detect when a call has ended
+   - Added checks for both status === 'ended' and endedAt !== null conditions
+
+3. **Better Resource Cleanup**:
+   - Ensured proper cleanup of media resources and Firestore listeners
+   - Added validation before closing RTCPeerConnection to prevent errors
+   - Implemented proper unsubscription of all listeners
+
+4. **Enhanced Communication with Parent Component**:
+   - Added logging to track when the video call is being ended
+   - Ensured parent components are notified when a call ends
+   - Added a small delay before notifying parent components to ensure UI updates
+
+### Technical Implementation Details:
+
+1. **Preventing Duplicate Handling**:
+   ```javascript
+   const hasEndedRef = useRef(false); // Track if call has already ended
+   
+   // In endCall function:
+   if (hasEndedRef.current) {
+     console.log('Call already ended, skipping');
+     return;
+   }
+   
+   hasEndedRef.current = true; // Mark call as ended
+   ```
+
+2. **Comprehensive Status Detection**:
+   ```javascript
+   if (data.status === 'ended' || (data.endedAt && data.endedAt !== null)) {
+     // Handle call end
+   }
+   ```
+
+3. **Proper Parent Communication**:
+   ```javascript
+   // Notify parent components after a short delay to ensure UI updates
+   setTimeout(() => {
+     if (onCallEnd) {
+       onCallEnd();
+     }
+     if (onClose) {
+       onClose();
+     }
+   }, 100);
+   ```
+
+## Testing & Verification
+
+The solution was tested with the following scenarios:
+1. Local hang-up test - Verified UI disappears immediately on both ends
+2. Remote hang-up test - Verified local UI disappears after showing "Call ended by other party"
+3. Resource cleanup verification - Confirmed all streams and listeners are properly cleaned up
+4. Race condition test - Verified simultaneous hang-ups work correctly
+
+## Conclusion
+
+The bug was successfully resolved by implementing proper communication between the VideoCall component and its parent component, enhancing state management to prevent duplicate handling, and improving call status detection to accurately identify when calls have ended. The solution ensures that when either user ends a video call, the UI immediately disappears on both ends, all resources are properly cleaned up, and no lingering streams or listeners remain active.

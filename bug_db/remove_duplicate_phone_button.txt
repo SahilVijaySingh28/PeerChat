@@ -1,0 +1,54 @@
+# FlashChat Duplicate Phone Button Removal
+
+## Issue Description
+The video call interface had two Phone (end call) buttons:
+1. One in the header (top right corner)
+2. One in the call controls (bottom center)
+
+This created a redundant UI element that could confuse users.
+
+## Root Cause Analysis
+During the development of the video call interface, a Phone button was added to the header for quick access to end calls. However, a complete set of call controls including an end call button was also implemented in the bottom section, making the header button redundant.
+
+## Solution Implementation
+Removed the Phone button from the video call header while keeping the comprehensive call controls in the bottom section. The bottom call controls include:
+- Mute/Unmute button
+- Video on/off button
+- Screen share button
+- End call button (Phone icon)
+
+## Code Changes
+Modified [video-call.jsx](file:///c:/Users/aashi/OneDrive/Desktop/flashchat_new/src/components/video-call.jsx) to remove the Phone button from the header section:
+
+```jsx
+{/* Call header */}
+<div className="flex items-center justify-between p-3 border-b border-gray-700">
+  <div className="min-w-0 flex-1">
+    <h3 className="text-responsive-lg font-semibold truncate">{chatTitle}</h3>
+    <div className="flex items-center gap-2">
+      <p className="text-responsive-sm text-muted-foreground truncate">{callStatus}</p>
+      {callStatus === 'Call in progress' && (
+        <span className="text-responsive-sm font-medium text-green-500">
+          {formatCallDuration(callDuration)}
+        </span>
+      )}
+    </div>
+  </div>
+  {/* Removed the Phone button from header since we have one in the call controls */}
+</div>
+```
+
+## Verification Steps
+1. Start a video call between two users
+2. Verify that there is no Phone button in the header
+3. Verify that the call controls at the bottom still include the end call button
+4. Test that the end call functionality works properly from the bottom controls
+5. Confirm that the UI is cleaner and less cluttered
+
+## Results
+- Eliminated UI redundancy
+- Maintained all functionality
+- Improved user interface clarity
+- Consistent with user preference for a single, clearly positioned end call button
+
+cpyright @aspirinexar

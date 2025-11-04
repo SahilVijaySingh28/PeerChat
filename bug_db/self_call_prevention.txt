@@ -1,0 +1,49 @@
+# FlashChat Self-Call Prevention Feature
+
+## Feature Description
+Implemented functionality to prevent users from making video or audio calls to themselves, which would be an invalid operation.
+
+## Issue
+Users could accidentally initiate calls to their own chat, which would create a confusing user experience and potentially cause technical issues with the WebRTC connection.
+
+## Solution
+Added validation checks in both the [startVideoCall](file:///c:/Users/aashi/OneDrive/Desktop/flashchat_new/src/components/chat-thread.jsx#L106-L126) and [startAudioCall](file:///c:/Users/aashi/OneDrive/Desktop/flashchat_new/src/components/chat-thread.jsx#L128-L148) functions in [chat-thread.jsx](file:///c:/Users/aashi/OneDrive/Desktop/flashchat_new/src/components/chat-thread.jsx) to compare the selected chat user ID with the current user ID. If they match, an alert is shown and the call is prevented.
+
+## Implementation Details
+
+### Video Call Prevention
+```javascript
+// Prevent users from calling themselves
+if (selectedChat.uid === user?.uid) {
+  alert("You cannot make a video call to yourself.");
+  return;
+}
+```
+
+### Audio Call Prevention
+```javascript
+// Prevent users from calling themselves
+if (selectedChat.uid === user?.uid) {
+  alert("You cannot make an audio call to yourself.");
+  return;
+}
+```
+
+## Verification Steps
+1. Log in to FlashChat as a user
+2. Navigate to your own chat (if accessible)
+3. Attempt to initiate a video call
+4. Verify that an alert message appears: "You cannot make a video call to yourself."
+5. Attempt to initiate an audio call
+6. Verify that an alert message appears: "You cannot make an audio call to yourself."
+7. Navigate to another user's chat
+8. Verify that calls can still be initiated normally
+
+## Impact
+This change improves the user experience by:
+- Preventing invalid self-calls
+- Providing clear feedback when users attempt invalid operations
+- Reducing potential technical issues with WebRTC connections
+- Maintaining consistency with user expectations
+
+cpyright @aspirinexar
