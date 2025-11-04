@@ -6,13 +6,13 @@ import { getAnalytics } from "firebase/analytics";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyB_3xErgKerW8IsWLQzu6IsMyiXNOPSxEo",
-  authDomain: "web-socket-2e05f.firebaseapp.com",
-  projectId: "web-socket-2e05f",
-  storageBucket: "web-socket-2e05f.firebasestorage.app",
-  messagingSenderId: "213332457740",
-  appId: "1:213332457740:web:dbfe9e380e1629d0427129",
-  measurementId: "G-RYFQE7TFGN"
+  apiKey: "AIzaSyDTRYyDpLPuhNN5wSdqzi5lrvuAuVWhgn4",
+  authDomain: "peerchat-bea12.firebaseapp.com",
+  projectId: "peerchat-bea12",
+  storageBucket: "peerchat-bea12.firebasestorage.app",
+  messagingSenderId: "249672677579",
+  appId: "1:249672677579:web:4056265f87a9d80239434e",
+  measurementId: "G-P87VJTD56K"
 };
 
 // Initialize Firebase
