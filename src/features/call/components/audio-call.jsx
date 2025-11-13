@@ -10,7 +10,7 @@ export function AudioCall({ selectedChat, onClose, onCallEnd, callId }) {
   const user = getCurrentUser();
   const chatTitle = selectedChat 
     ? selectedChat.name 
-    : "FlashChat";
+    : "PeerChat";
 
   // Initialize call and send notification
   useEffect(() => {

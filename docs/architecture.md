@@ -1,7 +1,7 @@
-# FlashChat Architecture Documentation
+# PeerChat Architecture Documentation
 
 ## Overview
-FlashChat is a real-time communication platform built with React, Firebase, and WebRTC. It provides instant messaging and audio/video calling capabilities with a focus on user experience and performance.
+PeerChat is a real-time communication platform built with React, Firebase, and WebRTC. It provides instant messaging and audio/video calling capabilities with a focus on user experience and performance.
 
 ## Technology Stack
 
@@ -152,7 +152,7 @@ Utility functions:
 
 ## State Management
 
-FlashChat uses a combination of approaches for state management:
+PeerChat uses a combination of approaches for state management:
 
 1. **React State Hooks**: Local component state for UI elements
 2. **Custom Hooks**: Encapsulated state logic for specific features

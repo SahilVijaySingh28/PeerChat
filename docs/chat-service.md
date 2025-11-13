@@ -1,7 +1,7 @@
 # Chat Service Documentation
 
 ## Overview
-The Chat Service handles all messaging functionality in FlashChat, including sending messages, subscribing to message streams, and retrieving latest messages for conversation lists.
+The Chat Service handles all messaging functionality in PeerChat, including sending messages, subscribing to message streams, and retrieving latest messages for conversation lists.
 
 ## Functions
 

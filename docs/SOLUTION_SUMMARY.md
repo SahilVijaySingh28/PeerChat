@@ -1,6 +1,6 @@
-# FlashChat - Solution Summary
+# PeerChat - Solution Summary
 
-This document summarizes all the fixes and improvements made to the FlashChat application to resolve the connection issues and implement the requested features.
+This document summarizes all the fixes and improvements made to the PeerChat application to resolve the connection issues and implement the requested features.
 
 ## Issues Fixed
 

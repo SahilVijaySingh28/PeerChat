@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document tracks the progress of the refactoring phase for the FlashChat application.
+This document tracks the progress of the refactoring phase for the PeerChat application.
 
 ## Completed Tasks
 

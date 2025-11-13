@@ -1,7 +1,7 @@
-# FlashChat Deployment Guide
+# PeerChat Deployment Guide
 
 ## Overview
-This guide provides instructions for deploying the FlashChat application to various environments, including development, staging, and production. FlashChat uses Firebase for backend services and can be deployed using Firebase Hosting.
+This guide provides instructions for deploying the PeerChat application to various environments, including development, staging, and production. PeerChat uses Firebase for backend services and can be deployed using Firebase Hosting.
 
 ## Prerequisites
 
@@ -25,8 +25,8 @@ firebase login
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/your-username/flashchat.git
-cd flashchat
+git clone https://github.com/your-username/peerchat.git
+cd peerchat
 ```
 
 ### 2. Install Dependencies
@@ -216,7 +216,7 @@ Set the following secrets in your GitHub repository:
 ## Monitoring and Analytics
 
 ### Firebase Analytics
-FlashChat includes Firebase Analytics for monitoring user behavior:
+PeerChat includes Firebase Analytics for monitoring user behavior:
 
 ```javascript
 // Initialize Analytics
@@ -344,4 +344,4 @@ npm run type-check
 3. Monitor WebRTC connection quality
 4. Review and optimize build performance
 
-This deployment guide provides a comprehensive overview of deploying FlashChat to various environments, ensuring a smooth and secure deployment process.
+This deployment guide provides a comprehensive overview of deploying PeerChat to various environments, ensuring a smooth and secure deployment process.

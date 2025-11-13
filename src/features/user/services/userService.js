@@ -19,7 +19,8 @@ import {
   arrayRemove,
   updateDoc,
   serverTimestamp,
-  addDoc
+  addDoc,
+  Timestamp
 } from 'firebase/firestore';
 import { handleFirestoreError } from '@/config/firebase';
 
@@ -57,6 +58,9 @@ let currentUser = null;
 let currentUserFirestoreData = null; // Store Firestore data separately
 let userActivityTimer = null; // Timer to track user activity
 let isUserActive = true; // Track if user is actively using the app
+let onlineStatusUpdateInProgress = false; // Track if an online status update is in progress
+let onlineStatusUpdateQueue = null; // Queue for pending online status updates
+let onlineStatusDebounceTimer = null; // Debounce timer for online status updates
 
 // Function to initialize authentication
 export const initAuth = () => {
@@ -77,22 +81,30 @@ export const initAuth = () => {
               const userData = {
                 uid: user.uid,
                 name: user.displayName || user.email || `User${Math.floor(Math.random() * 10000)}`,
-                displayName: user.displayName,
-                email: user.email || '',
+                displayName: user.displayName || '',
+                email: user.email ? user.email.toLowerCase().trim() : '', // Normalize email to lowercase
                 photoURL: getHighQualityPhotoURL(user.photoURL) || user.photoURL || '', // Keep original if processing fails
                 friends: [], // Initialize empty friends array
                 friendRequests: [], // Initialize empty friend requests array
                 notifications: [], // Initialize empty notifications array
-                createdAt: new Date(),
+                createdAt: Timestamp.fromDate(new Date()),
                 // Online status privacy settings
                 onlineStatusPrivacy: 'friends', // 'everyone', 'friends', 'nobody'
                 isOnline: true, // Set as online when creating account
-                lastSeen: new Date(),
+                lastSeen: Timestamp.fromDate(new Date()),
                 appearOffline: false // Default to not appearing offline
               };
               
               await setDoc(doc(db, 'users', user.uid), userData);
               currentUserFirestoreData = userData;
+              console.log('initAuth: Created new user document in Firestore:', user.uid);
+              
+              // Ensure online status is set after document creation (immediate update)
+              try {
+                await updateUserOnlineStatus(true, true);
+              } catch (statusError) {
+                console.warn('Error setting online status after user creation:', statusError);
+              }
             } else {
               // Update user document with latest data if it exists
               const userData = userDoc.data();
@@ -118,27 +130,32 @@ export const initAuth = () => {
               
               currentUserFirestoreData = userData;
               
+              // Normalize email to lowercase for consistency
+              const normalizedEmail = user.email ? user.email.toLowerCase().trim() : (userData.email || '');
+              
               // Update Firestore with latest auth data
               const updatedData = {
                 uid: user.uid,
-                name: user.displayName || user.email || `User${Math.floor(Math.random() * 10000)}`,
-                displayName: user.displayName,
-                email: user.email || '',
-                photoURL: getHighQualityPhotoURL(user.photoURL) || user.photoURL || '', // Keep original if processing fails
+                name: user.displayName || user.email || userData.name || `User${Math.floor(Math.random() * 10000)}`,
+                displayName: user.displayName || userData.displayName || '',
+                email: normalizedEmail, // Use normalized email
+                photoURL: getHighQualityPhotoURL(user.photoURL) || user.photoURL || userData.photoURL || '',
                 friends: userData.friends, // Preserve existing friends array
                 friendRequests: userData.friendRequests, // Preserve existing friendRequests array
                 notifications: userData.notifications, // Preserve existing notifications array
-                lastLogin: new Date()
+                lastLogin: Timestamp.fromDate(new Date()),
+                appearOffline: userData.appearOffline !== undefined ? userData.appearOffline : false
               };
               
               await setDoc(doc(db, 'users', user.uid), updatedData, { merge: true });
+              console.log('initAuth: Updated existing user document in Firestore:', user.uid);
               
-              // Set user as online when they sign in, unless they've chosen to appear offline
+              // Set user as online when they sign in, unless they've chosen to appear offline (immediate update)
               if (!userData.appearOffline) {
-                await updateUserOnlineStatus(true);
+                await updateUserOnlineStatus(true, true);
               } else {
                 // Ensure they're marked as offline if they've chosen to appear offline
-                await updateUserOnlineStatus(false);
+                await updateUserOnlineStatus(false, true);
               }
             }
           } catch (error) {
@@ -171,28 +188,75 @@ export const signInWithGoogle = async () => {
     // Only interact with Firestore if it's available
     if (db) {
       try {
-        // Create or update user document in Firestore
-        const userData = {
+        // Check if user document already exists
+        const userDocRef = doc(db, 'users', currentUser.uid);
+        const userDoc = await getDoc(userDocRef);
+        
+        // Prepare user data with all required fields
+        const baseUserData = {
           uid: currentUser.uid,
           name: currentUser.displayName || currentUser.email || `User${currentUser.uid.substring(0, 5)}`,
-          displayName: currentUser.displayName,
-          email: currentUser.email,
-          photoURL: getHighQualityPhotoURL(currentUser.photoURL) || currentUser.photoURL || '', // Keep original if processing fails
-          lastLogin: new Date(),
-          appearOffline: false // Default to not appearing offline
+          displayName: currentUser.displayName || '',
+          email: currentUser.email ? currentUser.email.toLowerCase().trim() : '', // Normalize email
+          photoURL: getHighQualityPhotoURL(currentUser.photoURL) || currentUser.photoURL || '',
+          lastLogin: Timestamp.fromDate(new Date()),
+          appearOffline: false
         };
         
-        await setDoc(doc(db, 'users', currentUser.uid), userData, { merge: true });
-        currentUserFirestoreData = userData;
+        if (!userDoc.exists()) {
+          // Create new user document with all required fields
+          const newUserData = {
+            ...baseUserData,
+            friends: [], // Initialize empty friends array
+            friendRequests: [], // Initialize empty friend requests array
+            notifications: [], // Initialize empty notifications array
+            createdAt: Timestamp.fromDate(new Date()),
+            onlineStatusPrivacy: 'friends', // 'everyone', 'friends', 'nobody'
+            isOnline: true,
+            lastSeen: Timestamp.fromDate(new Date())
+          };
+          
+          await setDoc(userDocRef, newUserData);
+          currentUserFirestoreData = newUserData;
+          console.log('signInWithGoogle: Created new user document in Firestore:', currentUser.uid);
+          
+          // Ensure online status is set after document creation (immediate update)
+          try {
+            await updateUserOnlineStatus(true, true);
+          } catch (statusError) {
+            console.warn('Error setting online status after user creation:', statusError);
+          }
+        } else {
+          // Update existing user document, ensuring arrays exist
+          const existingData = userDoc.data();
+          const updatedUserData = {
+            ...baseUserData,
+            // Preserve existing arrays if they exist, otherwise initialize them
+            friends: Array.isArray(existingData.friends) ? existingData.friends : [],
+            friendRequests: Array.isArray(existingData.friendRequests) ? existingData.friendRequests : [],
+            notifications: Array.isArray(existingData.notifications) ? existingData.notifications : [],
+            // Preserve other existing fields
+            createdAt: existingData.createdAt || new Date(),
+            onlineStatusPrivacy: existingData.onlineStatusPrivacy || 'friends',
+            lastSeen: existingData.lastSeen || new Date(),
+            appearOffline: existingData.appearOffline !== undefined ? existingData.appearOffline : false
+          };
+          
+          await setDoc(userDocRef, updatedUserData, { merge: true });
+          currentUserFirestoreData = updatedUserData;
+          console.log('signInWithGoogle: Updated existing user document in Firestore:', currentUser.uid);
+        }
         
-        // Set user as online when they sign in, unless they've chosen to appear offline
-        if (!userData.appearOffline) {
-          await updateUserOnlineStatus(true);
+        // Set user as online when they sign in, unless they've chosen to appear offline (immediate update)
+        const finalUserData = currentUserFirestoreData || baseUserData;
+        if (!finalUserData.appearOffline) {
+          await updateUserOnlineStatus(true, true);
         } else {
           // Ensure they're marked as offline if they've chosen to appear offline
-          await updateUserOnlineStatus(false);
+          await updateUserOnlineStatus(false, true);
         }
       } catch (error) {
+        console.error('Error creating/updating user document:', error);
         handleFirestoreError(error);
         // Continue with authentication even if Firestore fails
       }
@@ -208,8 +272,8 @@ export const signInWithGoogle = async () => {
 // Function to sign out
 export const signOutUser = async () => {
   try {
-    // Set user as offline before signing out
-    await updateUserOnlineStatus(false);
+    // Set user as offline before signing out (immediate update)
+    await updateUserOnlineStatus(false, true);
     
     await signOut(auth);
     currentUser = null;
@@ -219,29 +283,127 @@ export const signOutUser = async () => {
   }
 };
 
-// Function to update user's online status
-export const updateUserOnlineStatus = async (isOnline) => {
-  if (!currentUser || !db) return;
+// Function to update user's online status with debouncing and queue management
+export const updateUserOnlineStatus = async (isOnline, immediate = false) => {
+  // Use auth.currentUser to ensure we have the latest authenticated user
+  const authUser = auth.currentUser;
+  if (!authUser || !db) {
+    console.warn('updateUserOnlineStatus: No authenticated user or database not available');
+    return;
+  }
+
+  // If an update is already in progress, queue this update
+  if (onlineStatusUpdateInProgress && !immediate) {
+    onlineStatusUpdateQueue = isOnline;
+    return;
+  }
+
+  // Debounce non-immediate updates to avoid too many writes
+  if (!immediate) {
+    // Clear existing debounce timer
+    if (onlineStatusDebounceTimer) {
+      clearTimeout(onlineStatusDebounceTimer);
+    }
+    
+    // Set new debounce timer
+    onlineStatusDebounceTimer = setTimeout(async () => {
+      await performOnlineStatusUpdate(authUser, isOnline);
+    }, 1000); // Wait 1 second before updating
+    
+    return;
+  }
+
+  // Immediate update (for sign in/out)
+  await performOnlineStatusUpdate(authUser, isOnline);
+};
+
+// Internal function to perform the actual Firestore update
+const performOnlineStatusUpdate = async (authUser, isOnline) => {
+  // Prevent concurrent updates
+  if (onlineStatusUpdateInProgress) {
+    console.warn('updateUserOnlineStatus: Update already in progress, skipping');
+    return;
+  }
+
+  onlineStatusUpdateInProgress = true;
+  
+  // Define userDocRef outside try block so it's accessible in catch
+  const userDocRef = doc(db, 'users', authUser.uid);
 
   try {
-    const userDocRef = doc(db, 'users', currentUser.uid);
+    // Use Timestamp instead of serverTimestamp() to avoid Firestore internal assertion errors
     const updateData = {
       isOnline: isOnline,
-      lastSeen: isOnline ? serverTimestamp() : new Date()
+      lastSeen: Timestamp.fromDate(new Date())
     };
     
     await updateDoc(userDocRef, updateData);
+    console.log(`updateUserOnlineStatus: Set user ${authUser.uid} online status to ${isOnline}`);
+    
+    // Process queued update if any
+    if (onlineStatusUpdateQueue !== null) {
+      const queuedStatus = onlineStatusUpdateQueue;
+      onlineStatusUpdateQueue = null;
+      // Recursively call with immediate flag to process queue
+      setTimeout(() => {
+        performOnlineStatusUpdate(authUser, queuedStatus);
+      }, 500);
+    }
   } catch (error) {
     console.error('Error updating user online status:', error);
+    console.error('Error details:', {
+      code: error.code,
+      message: error.message,
+      stack: error.stack
+    });
+    
+    // If the document doesn't exist or permission denied, create it
+    if (error.code === 'not-found' || error.code === 'permission-denied') {
+      try {
+        const userData = {
+          uid: authUser.uid,
+          name: authUser.displayName || authUser.email || `User${authUser.uid.substring(0, 5)}`,
+          displayName: authUser.displayName || '',
+          email: authUser.email ? authUser.email.toLowerCase().trim() : '',
+          photoURL: getHighQualityPhotoURL(authUser.photoURL) || authUser.photoURL || '',
+          friends: [],
+          friendRequests: [],
+          notifications: [],
+          createdAt: Timestamp.fromDate(new Date()),
+          onlineStatusPrivacy: 'friends',
+          isOnline: isOnline,
+          lastSeen: Timestamp.fromDate(new Date()),
+          appearOffline: false,
+          lastLogin: Timestamp.fromDate(new Date())
+        };
+        await setDoc(userDocRef, userData);
+        console.log('updateUserOnlineStatus: Created user document');
+      } catch (createError) {
+        console.error('Error creating user document in updateUserOnlineStatus:', createError);
+        console.error('Create error details:', {
+          code: createError.code,
+          message: createError.message
+        });
+      }
+    }
+  } finally {
+    onlineStatusUpdateInProgress = false;
   }
 };
 
 // Function to set user to appear offline
 export const setAppearOffline = async (appearOffline) => {
-  if (!currentUser || !db) return;
+  // Use auth.currentUser as fallback if currentUser is not set
+  const authUser = auth.currentUser;
+  const user = currentUser || authUser;
+  
+  if (!user || !db) {
+    console.warn('setAppearOffline: No authenticated user or database not available');
+    return;
+  }
 
   try {
-    const userDocRef = doc(db, 'users', currentUser.uid);
+    const userDocRef = doc(db, 'users', user.uid);
     await updateDoc(userDocRef, {
       appearOffline: appearOffline
     });
@@ -252,10 +414,17 @@ export const setAppearOffline = async (appearOffline) => {
 
 // Function to update user's online status privacy settings
 export const updateUserOnlineStatusPrivacy = async (privacySetting) => {
-  if (!currentUser || !db) return;
+  // Use auth.currentUser as fallback if currentUser is not set
+  const authUser = auth.currentUser;
+  const user = currentUser || authUser;
+  
+  if (!user || !db) {
+    console.warn('updateUserOnlineStatusPrivacy: No authenticated user or database not available');
+    return;
+  }
 
   try {
-    const userDocRef = doc(db, 'users', currentUser.uid);
+    const userDocRef = doc(db, 'users', user.uid);
     await updateDoc(userDocRef, {
       onlineStatusPrivacy: privacySetting
     });
@@ -266,10 +435,14 @@ export const updateUserOnlineStatusPrivacy = async (privacySetting) => {
 
 // Function to check if current user can see another user's online status
 export const canSeeOnlineStatus = (targetUser) => {
-  if (!currentUser || !targetUser) return false;
+  // Use auth.currentUser as fallback if currentUser is not set
+  const authUser = auth.currentUser;
+  const user = currentUser || authUser;
+  
+  if (!user || !targetUser) return false;
   
   // Always can see own status
-  if (currentUser.uid === targetUser.uid) return true;
+  if (user.uid === targetUser.uid) return true;
   
   // Check privacy settings
   const privacy = targetUser.onlineStatusPrivacy || 'friends';
@@ -282,13 +455,15 @@ export const canSeeOnlineStatus = (targetUser) => {
     case 'friends':
     default:
       // Check if current user is in target user's friends list
-      return Array.isArray(targetUser.friends) && targetUser.friends.includes(currentUser.uid);
+      return Array.isArray(targetUser.friends) && targetUser.friends.includes(user.uid);
   }
 };
 
-// Function to track user activity
+// Function to track user activity with debouncing
 export const trackUserActivity = () => {
-  if (!currentUser || !db) return;
+  // Use auth.currentUser as fallback
+  const authUser = auth.currentUser;
+  if (!authUser || !db) return;
 
   // Clear existing timer
   if (userActivityTimer) {
@@ -297,12 +472,24 @@ export const trackUserActivity = () => {
 
   // Set user as active
   isUserActive = true;
-  updateUserOnlineStatus(true);
+  
+  // Don't update immediately - let the debounce handle it
+  // This prevents too many Firestore writes
+  updateUserOnlineStatus(true, false).catch(err => {
+    // Silently handle errors to avoid console spam
+    if (err.code !== 'permission-denied') {
+      console.warn('trackUserActivity: Error updating online status:', err.message);
+    }
+  });
 
   // Set timer to mark user as inactive after 30 seconds of inactivity
   userActivityTimer = setTimeout(() => {
     isUserActive = false;
-    updateUserOnlineStatus(false);
+    // Use immediate flag for offline status to ensure it's set
+    updateUserOnlineStatus(false, true).catch(err => {
+      console.warn('trackUserActivity: Error updating offline status:', err);
+    });
+    userActivityTimer = null;
   }, 30000); // 30 seconds
 };
 
@@ -391,14 +578,61 @@ export const sendFriendRequest = async (friendEmail) => {
     throw new Error('Rate limit exceeded. Please try again later.');
   }
   
-  if (!currentUser || !db) {
-    throw new Error('User not authenticated or database not available');
+  // Use auth.currentUser to ensure we have the latest authenticated user
+  const authUser = auth.currentUser;
+  if (!authUser || !db) {
+    console.error('sendFriendRequest: User not authenticated or database not available', {
+      hasAuthUser: !!authUser,
+      hasDb: !!db,
+      authUserUid: authUser?.uid
+    });
+    throw new Error('User not authenticated or database not available. Please log in and try again.');
   }
 
   try {
+    // Ensure current user's document exists in Firestore
+    const userDocRef = doc(db, 'users', authUser.uid);
+    let userDoc = await getDoc(userDocRef);
+    
+    // If user document doesn't exist, create it
+    if (!userDoc.exists()) {
+      console.log('sendFriendRequest: User document does not exist, creating it...');
+      const newUserData = {
+        uid: authUser.uid,
+        name: authUser.displayName || authUser.email || `User${authUser.uid.substring(0, 5)}`,
+        displayName: authUser.displayName || '',
+        email: authUser.email ? authUser.email.toLowerCase().trim() : '',
+        photoURL: getHighQualityPhotoURL(authUser.photoURL) || authUser.photoURL || '',
+        friends: [],
+        friendRequests: [],
+        notifications: [],
+        createdAt: Timestamp.fromDate(new Date()),
+        onlineStatusPrivacy: 'friends',
+        isOnline: true,
+        lastSeen: Timestamp.fromDate(new Date()),
+        appearOffline: false,
+        lastLogin: Timestamp.fromDate(new Date())
+      };
+      
+      await setDoc(userDocRef, newUserData);
+      userDoc = await getDoc(userDocRef); // Re-fetch the document
+      
+      if (!userDoc.exists()) {
+        throw new Error('Failed to create user document. Please try logging in again.');
+      }
+    }
+    
+    // Normalize email to lowercase for case-insensitive comparison
+    const normalizedFriendEmail = friendEmail.toLowerCase().trim();
+    
+    // Prevent users from adding themselves
+    if (authUser.email && authUser.email.toLowerCase() === normalizedFriendEmail) {
+      throw new Error('You cannot add yourself as a friend');
+    }
+    
     // Find the user with the provided email
     const usersRef = collection(db, 'users');
-    const q = query(usersRef, where('email', '==', friendEmail));
+    const q = query(usersRef, where('email', '==', normalizedFriendEmail));
     const querySnapshot = await getDocs(q);
     
     if (querySnapshot.empty) {
@@ -407,46 +641,112 @@ export const sendFriendRequest = async (friendEmail) => {
     
     const friendDoc = querySnapshot.docs[0];
     const friendData = friendDoc.data();
+    const friendUid = friendData.uid || friendDoc.id;
+    
+    // Validate friend data
+    if (!friendUid) {
+      throw new Error('Invalid user data. User UID not found.');
+    }
+    
+    const userData = userDoc.data();
+    const userFriends = Array.isArray(userData.friends) ? userData.friends : [];
+    const userFriendRequests = Array.isArray(userData.friendRequests) ? userData.friendRequests : [];
+    
+    // Check if users are already friends
+    if (userFriends.includes(friendUid)) {
+      throw new Error('You are already friends with this user');
+    }
+    
+    // Check if a friend request already exists (either sent or received)
+    const existingRequest = userFriendRequests.find(req => 
+      (req.from === friendUid || req.to === friendUid) ||
+      (req.fromEmail && req.fromEmail.toLowerCase() === normalizedFriendEmail) ||
+      (req.toEmail && req.toEmail.toLowerCase() === normalizedFriendEmail)
+    );
+    
+    if (existingRequest) {
+      throw new Error('A friend request already exists with this user');
+    }
+    
+    // Get friend's document to check their friend requests
+    const friendDocRef = doc(db, 'users', friendUid);
+    const friendDocSnapshot = await getDoc(friendDocRef);
+    
+    if (!friendDocSnapshot.exists()) {
+      throw new Error('User account not found. Please check the email address.');
+    }
+    
+    const friendDocData = friendDocSnapshot.data();
+    const friendFriendRequests = Array.isArray(friendDocData.friendRequests) ? friendDocData.friendRequests : [];
+    const friendFriends = Array.isArray(friendDocData.friends) ? friendDocData.friends : [];
+    
+    // Check if friend already has a request from this user
+    const existingFriendRequest = friendFriendRequests.find(req => 
+      req.from === authUser.uid || 
+      (req.fromEmail && req.fromEmail.toLowerCase() === authUser.email?.toLowerCase())
+    );
+    
+    if (existingFriendRequest) {
+      throw new Error('You have already sent a friend request to this user');
+    }
+    
+    // Check if friend already has current user as a friend
+    if (friendFriends.includes(authUser.uid)) {
+      throw new Error('You are already friends with this user');
+    }
+    
+    // Create friend request object with Firestore-compatible timestamp
+    // Use Timestamp.fromDate() to ensure compatibility with Firestore arrayUnion
+    const friendRequest = {
+      from: authUser.uid,
+      fromEmail: authUser.email || '',
+      fromName: authUser.displayName || authUser.email || 'Unknown User',
+      timestamp: Timestamp.fromDate(new Date()) // Convert to Firestore Timestamp
+    };
     
     // Add friend request to the recipient's friendRequests array
-    await updateDoc(doc(db, 'users', friendData.uid), {
-      friendRequests: arrayUnion({
-        from: currentUser.uid,
-        fromEmail: currentUser.email,
-        fromName: currentUser.displayName,
-        timestamp: new Date()
-      })
-    });
+    try {
+      await updateDoc(friendDocRef, {
+        friendRequests: arrayUnion(friendRequest)
+      });
+    } catch (updateError) {
+      console.error('Error updating friend document:', updateError);
+      // If the error is permission-denied, provide more context
+      if (updateError.code === 'permission-denied') {
+        throw new Error('Permission denied. Please ensure you are logged in and your account is properly set up. If the problem persists, try logging out and logging back in.');
+      }
+      throw updateError;
+    }
     
     // Add notification to the requester about sending the request
+    // Use Timestamp for consistency with Firestore
     const notificationData = {
       type: 'friend_request_sent',
       message: `You sent a friend request to ${friendData.name || friendData.displayName || friendData.email}`,
-      to: friendData.uid,
+      to: friendUid,
       toName: friendData.name || friendData.displayName || friendData.email,
-      timestamp: new Date(),
+      timestamp: Timestamp.fromDate(new Date()),
       read: false
     };
     
-    // Get the current user's document first
-    const userDocRef = doc(db, 'users', currentUser.uid);
-    const userDoc = await getDoc(userDocRef);
+    // Get the current user's notifications
+    const notifications = Array.isArray(userData.notifications) ? userData.notifications : [];
     
-    if (userDoc.exists()) {
-      const userData = userDoc.data();
-      const notifications = Array.isArray(userData.notifications) ? userData.notifications : [];
-      
-      // Add the new notification to the array
-      notifications.push(notificationData);
-      
-      // Update the document with the new notifications array
-      // Ensure the read property is properly stored
+    // Add the new notification to the array
+    notifications.push(notificationData);
+    
+    // Update the document with the new notifications array
+    try {
       await updateDoc(userDocRef, {
         notifications: notifications.map(notification => ({
           ...notification,
           read: notification.read !== undefined ? notification.read : false
         }))
       });
+    } catch (updateError) {
+      console.error('Error updating user notifications:', updateError);
+      // Don't fail the entire operation if notification update fails
+      // The friend request was already sent successfully
     }
     
     return friendData;
@@ -457,38 +757,58 @@ export const sendFriendRequest = async (friendEmail) => {
       message: error.message,
       stack: error.stack,
       friendEmail: friendEmail,
-      currentUser: currentUser ? {
-        uid: currentUser.uid,
-        email: currentUser.email,
-        displayName: currentUser.displayName
+      authUser: authUser ? {
+        uid: authUser.uid,
+        email: authUser.email,
+        displayName: authUser.displayName
       } : null
     });
     
     // Handle specific Firebase errors
     if (error.code === 'permission-denied') {
-      throw new Error('Permission denied. You may not have access to send friend requests.');
+      // More detailed error message for permission issues
+      console.error('Permission denied error details:', {
+        code: error.code,
+        message: error.message,
+        authUser: authUser ? {
+          uid: authUser.uid,
+          email: authUser.email,
+          displayName: authUser.displayName
+        } : null,
+        friendEmail: friendEmail
+      });
+      throw new Error('Permission denied. Please ensure you are logged in and try again. If the problem persists, try logging out and logging back in.');
     } else if (error.code === 'not-found') {
       throw new Error('User not found. Please check the email address.');
     } else if (error.code === 'resource-exhausted') {
       throw new Error('Too many requests. Please wait a moment and try again.');
-    } else if (error.message === 'User with this email not found') {
+    } else if (error.code === 'unavailable') {
+      throw new Error('Service temporarily unavailable. Please check your internet connection and try again.');
+    } else if (error.message === 'User with this email not found' || error.message.includes('not found')) {
       throw new Error('User with this email not found');
+    } else if (error.message.includes('already')) {
+      // Pass through messages about existing relationships
+      throw error;
     } else {
-      throw new Error('Failed to send friend request. Please try again.');
+      throw new Error(error.message || 'Failed to send friend request. Please try again.');
     }
   }
 };
 
 // Function to subscribe to friend requests
 export const subscribeToFriendRequests = (callback) => {
-  if (!currentUser || !db) {
+  // Use auth.currentUser as fallback if currentUser is not set
+  const authUser = auth.currentUser;
+  const user = currentUser || authUser;
+  
+  if (!user || !db) {
     callback([]);
     return () => {};
   }
 
   try {
     // Get the current user's document to get their friend requests
-    const userDocRef = doc(db, 'users', currentUser.uid);
+    const userDocRef = doc(db, 'users', user.uid);
     
     return onSnapshot(userDocRef, (docSnapshot) => {
       if (docSnapshot.exists()) {
@@ -516,20 +836,28 @@ export const acceptFriendRequest = async (request) => {
     throw new Error('Rate limit exceeded. Please try again later.');
   }
   
-  if (!currentUser || !db) {
-    throw new Error('User not authenticated or database not available');
+  // Use auth.currentUser as fallback if currentUser is not set
+  const authUser = auth.currentUser;
+  const user = currentUser || authUser;
+  
+  if (!user || !db) {
+    console.error('acceptFriendRequest: User not authenticated or database not available', {
+      hasCurrentUser: !!currentUser,
+      hasAuthUser: !!authUser
+    });
+    throw new Error('User not authenticated or database not available. Please log in and try again.');
   }
 
   try {
     // Add the requester to the current user's friends list
-    await updateDoc(doc(db, 'users', currentUser.uid), {
+    await updateDoc(doc(db, 'users', user.uid), {
       friends: arrayUnion(request.from),
       friendRequests: arrayRemove(request)
     });
 
     // Add the current user to the requester's friends list
     await updateDoc(doc(db, 'users', request.from), {
-      friends: arrayUnion(currentUser.uid)
+      friends: arrayUnion(user.uid)
     });
     
     // Add notification to the current user (Himani) about accepting the request
@@ -538,12 +866,12 @@ export const acceptFriendRequest = async (request) => {
       message: `You accepted ${request.fromName || request.fromEmail}'s friend request`,
       from: request.from,
       fromName: request.fromName || request.fromEmail,
-      timestamp: new Date(),
+      timestamp: Timestamp.fromDate(new Date()),
       read: false
     };
     
     // Get the current user's document first
-    const currentUserDocRef = doc(db, 'users', currentUser.uid);
+    const currentUserDocRef = doc(db, 'users', user.uid);
     const currentUserDoc = await getDoc(currentUserDocRef);
     
     if (currentUserDoc.exists()) {
@@ -566,10 +894,10 @@ export const acceptFriendRequest = async (request) => {
     // Add notification to the requester
     const notificationData2 = {
       type: 'friend_request_accepted',
-      message: `${currentUser.displayName || currentUser.email} accepted your friend request`,
-      from: currentUser.uid,
-      fromName: currentUser.displayName || currentUser.email,
-      timestamp: new Date(),
+      message: `${user.displayName || user.email} accepted your friend request`,
+      from: user.uid,
+      fromName: user.displayName || user.email,
+      timestamp: Timestamp.fromDate(new Date()),
       read: false
     };
     
@@ -608,13 +936,21 @@ export const declineFriendRequest = async (request) => {
     throw new Error('Rate limit exceeded. Please try again later.');
   }
   
-  if (!currentUser || !db) {
-    throw new Error('User not authenticated or database not available');
+  // Use auth.currentUser as fallback if currentUser is not set
+  const authUser = auth.currentUser;
+  const user = currentUser || authUser;
+  
+  if (!user || !db) {
+    console.error('declineFriendRequest: User not authenticated or database not available', {
+      hasCurrentUser: !!currentUser,
+      hasAuthUser: !!authUser
+    });
+    throw new Error('User not authenticated or database not available. Please log in and try again.');
   }
 
   try {
     // Remove the request from the current user's friendRequests array
-    await updateDoc(doc(db, 'users', currentUser.uid), {
+    await updateDoc(doc(db, 'users', user.uid), {
       friendRequests: arrayRemove(request)
     });
     
@@ -624,12 +960,12 @@ export const declineFriendRequest = async (request) => {
       message: `You declined ${request.fromName || request.fromEmail}'s friend request`,
       from: request.from,
       fromName: request.fromName || request.fromEmail,
-      timestamp: new Date(),
+      timestamp: Timestamp.fromDate(new Date()),
       read: false
     };
     
     // Get the current user's document first
-    const currentUserDocRef = doc(db, 'users', currentUser.uid);
+    const currentUserDocRef = doc(db, 'users', user.uid);
     const currentUserDoc = await getDoc(currentUserDocRef);
     
     if (currentUserDoc.exists()) {
@@ -648,10 +984,10 @@ export const declineFriendRequest = async (request) => {
     // Add notification to the requester
     const notificationData2 = {
       type: 'friend_request_declined',
-      message: `${currentUser.displayName || currentUser.email} declined your friend request`,
-      from: currentUser.uid,
-      fromName: currentUser.displayName || currentUser.email,
-      timestamp: new Date(),
+      message: `${user.displayName || user.email} declined your friend request`,
+      from: user.uid,
+      fromName: user.displayName || user.email,
+      timestamp: Timestamp.fromDate(new Date()),
       read: false
     };
     
@@ -777,14 +1113,18 @@ export const unfriendUser = async (friendUid) => {
 
 // Function to subscribe to notifications with enhanced filtering
 export const subscribeToNotifications = (callback) => {
-  if (!currentUser || !db) {
+  // Use auth.currentUser as fallback if currentUser is not set
+  const authUser = auth.currentUser;
+  const user = currentUser || authUser;
+  
+  if (!user || !db) {
     callback([]);
     return () => {};
   }
 
   try {
     // Get the current user's document to get their notifications
-    const userDocRef = doc(db, 'users', currentUser.uid);
+    const userDocRef = doc(db, 'users', user.uid);
     
     return onSnapshot(userDocRef, (docSnapshot) => {
       if (docSnapshot.exists()) {
@@ -893,13 +1233,21 @@ export const subscribeToNotifications = (callback) => {
 
 // Function to mark a notification as read with improved handling
 export const markNotificationAsRead = async (notification) => {
-  if (!currentUser || !db) {
-    throw new Error('User not authenticated or database not available');
+  // Use auth.currentUser as fallback if currentUser is not set
+  const authUser = auth.currentUser;
+  const user = currentUser || authUser;
+  
+  if (!user || !db) {
+    console.error('markNotificationAsRead: User not authenticated or database not available', {
+      hasCurrentUser: !!currentUser,
+      hasAuthUser: !!authUser
+    });
+    throw new Error('User not authenticated or database not available. Please log in and try again.');
   }
 
   try {
     // Get the current user's document
-    const userDocRef = doc(db, 'users', currentUser.uid);
+    const userDocRef = doc(db, 'users', user.uid);
     const userDoc = await getDoc(userDocRef);
     
     if (userDoc.exists()) {
@@ -1200,15 +1548,18 @@ export const subscribeToFriends = (callback) => {
 
 // Function to search friends with enhanced security and performance
 export const searchFriends = async (searchQuery) => {
-  if (!currentUser || !db || !searchQuery.trim()) {
+  // Use auth.currentUser to ensure we have the latest authenticated user
+  const authUser = auth.currentUser;
+  if (!authUser || !db || !searchQuery || !searchQuery.trim()) {
     return []
   }
 
   try {
     // Get current user's friends list
-    const userDoc = await getDoc(doc(db, 'users', currentUser.uid))
+    const userDoc = await getDoc(doc(db, 'users', authUser.uid))
     
     if (!userDoc.exists()) {
+      console.warn('searchFriends: User document not found', { uid: authUser.uid });
       return []
     }
     
@@ -1239,14 +1590,25 @@ export const searchFriends = async (searchQuery) => {
         
         // Check if friend matches search query
         const name = friendData.name || friendData.displayName || ''
-        const email = friendData.email || ''
+        const email = (friendData.email || '').toLowerCase()
+        const normalizedName = name.toLowerCase()
         
-        if (name.toLowerCase().includes(searchTerm) || email.toLowerCase().includes(searchTerm)) {
+        if (normalizedName.includes(searchTerm) || email.includes(searchTerm)) {
           // Ensure we're using high quality images
           if (friendData.photoURL) {
             friendData.photoURL = getHighQualityPhotoURL(friendData.photoURL)
           }
-          searchResults.push({ id: doc.id, ...friendData })
+          
+          // Ensure uid is set
+          if (!friendData.uid) {
+            friendData.uid = doc.id;
+          }
+          
+          searchResults.push({ 
+            id: doc.id, 
+            uid: friendData.uid,
+            ...friendData 
+          })
         }
       })
     }
@@ -1254,6 +1616,15 @@ export const searchFriends = async (searchQuery) => {
     return searchResults
   } catch (error) {
     console.error('Error searching friends:', error)
+    console.error('Error details:', {
+      code: error.code,
+      message: error.message,
+      searchQuery: searchQuery,
+      authUser: authUser ? {
+        uid: authUser.uid,
+        email: authUser.email
+      } : null
+    })
     return []
   }
 }
@@ -1264,7 +1635,14 @@ export const searchFriends = async (searchQuery) => {
  * @returns {Promise<Array>} - Array of user objects matching the search query
  */
 export const searchAllUsers = async (searchQuery) => {
-  if (!currentUser || !db || !searchQuery.trim()) {
+  // Use auth.currentUser to ensure we have the latest authenticated user
+  const authUser = auth.currentUser;
+  if (!authUser || !db || !searchQuery || !searchQuery.trim()) {
+    console.warn('searchAllUsers: Missing auth user, db, or search query', {
+      hasAuthUser: !!authUser,
+      hasDb: !!db,
+      searchQuery: searchQuery
+    });
     return []
   }
 
@@ -1274,81 +1652,197 @@ export const searchAllUsers = async (searchQuery) => {
     
     const searchResults = []
     const searchTerm = searchQuery.toLowerCase().trim()
+    const currentUserId = authUser.uid
     
     querySnapshot.forEach((doc) => {
       // Skip the current user
-      if (doc.id === currentUser.uid) {
+      const docId = doc.id;
+      const userData = doc.data();
+      const userUid = userData.uid || docId;
+      
+      if (userUid === currentUserId || docId === currentUserId) {
         return
       }
       
-      const userData = doc.data()
-      
       // Check if user matches search query
       const name = userData.name || userData.displayName || ''
-      const email = userData.email || ''
+      const email = (userData.email || '').toLowerCase()
+      const normalizedName = name.toLowerCase()
       
-      if (name.toLowerCase().includes(searchTerm) || email.toLowerCase().includes(searchTerm)) {
+      // Check if search term matches name or email
+      if (normalizedName.includes(searchTerm) || email.includes(searchTerm)) {
         // Ensure we're using high quality images
         if (userData.photoURL) {
           userData.photoURL = getHighQualityPhotoURL(userData.photoURL)
         }
-        searchResults.push({ id: doc.id, ...userData })
+        
+        // Ensure uid is set
+        if (!userData.uid) {
+          userData.uid = docId;
+        }
+        
+        searchResults.push({ 
+          id: docId, 
+          uid: userData.uid,
+          ...userData 
+        })
       }
     })
     
+    console.log(`searchAllUsers: Found ${searchResults.length} users matching "${searchQuery}"`);
     return searchResults
   } catch (error) {
     console.error('Error searching all users:', error)
+    console.error('Error details:', {
+      code: error.code,
+      message: error.message,
+      stack: error.stack,
+      searchQuery: searchQuery,
+      authUser: authUser ? {
+        uid: authUser.uid,
+        email: authUser.email
+      } : null
+    })
+    
+    // Return empty array on error to prevent breaking the UI
     return []
   }
 }
 
-// Function to subscribe to users list (all users for demo purposes)
+// Function to subscribe to users list (all users - accessible to all logged-in users)
 export const subscribeToUsers = (callback) => {
+  console.log('subscribeToUsers: Setting up subscription...');
+  
+  // Check if user is authenticated
+  const authUser = auth.currentUser;
+  if (!authUser) {
+    console.warn('subscribeToUsers: User not authenticated, returning empty user list');
+    callback([]);
+    return () => {};
+  }
+  
   // Only subscribe to Firestore if it's available
-  if (db) {
-    try {
-      const usersRef = collection(db, 'users');
-      const q = query(usersRef);
-      
-      return onSnapshot(q, (querySnapshot) => {
-        const users = [];
-        querySnapshot.forEach((doc) => {
-          const userData = doc.data();
-          // Ensure we're using high quality images
-          if (userData.photoURL) {
-            userData.photoURL = getHighQualityPhotoURL(userData.photoURL);
-          }
-          users.push({ id: doc.id, ...userData });
+  if (!db) {
+    console.warn('subscribeToUsers: Firestore not available, returning empty user list');
+    callback([]); // Return empty array if Firestore is not available
+    return () => {}; // Return empty unsubscribe function
+  }
+  
+  try {
+    const usersRef = collection(db, 'users');
+    // Query all users - no filter, so all logged-in users can see all members
+    const q = query(usersRef);
+    
+    console.log('subscribeToUsers: Creating Firestore snapshot listener for authenticated user:', authUser.uid);
+    
+    const unsubscribe = onSnapshot(
+      q, 
+      (querySnapshot) => {
+        try {
+          console.log(`subscribeToUsers: Snapshot received with ${querySnapshot.size} documents`);
+          const users = [];
+          
+          querySnapshot.forEach((doc) => {
+            try {
+              const userData = doc.data();
+              const docId = doc.id;
+              
+              // Skip if no user data
+              if (!userData) {
+                console.warn(`subscribeToUsers: Skipping document ${docId} - no data`);
+                return;
+              }
+              
+              // Create a new object instead of modifying the original Firestore data
+              // This prevents Firestore internal assertion errors
+              const processedUser = {
+                id: docId,
+                uid: userData.uid || docId,
+                name: userData.name || userData.displayName || userData.email || `User${docId.substring(0, 5)}`,
+                displayName: userData.displayName || userData.name || userData.email || '',
+                email: (userData.email && typeof userData.email === 'string') 
+                  ? userData.email.toLowerCase().trim() 
+                  : (userData.email || ''),
+                photoURL: userData.photoURL ? getHighQualityPhotoURL(userData.photoURL) : (userData.photoURL || ''),
+                friends: Array.isArray(userData.friends) ? userData.friends : [],
+                friendRequests: Array.isArray(userData.friendRequests) ? userData.friendRequests : [],
+                notifications: Array.isArray(userData.notifications) ? userData.notifications : [],
+                isOnline: userData.isOnline !== undefined ? userData.isOnline : false,
+                lastSeen: userData.lastSeen || null,
+                onlineStatusPrivacy: userData.onlineStatusPrivacy || 'friends',
+                appearOffline: userData.appearOffline !== undefined ? userData.appearOffline : false,
+                createdAt: userData.createdAt || null,
+                lastLogin: userData.lastLogin || null
+              };
+              
+              users.push(processedUser);
+            } catch (docError) {
+              console.error('subscribeToUsers: Error processing user document:', docError, doc.id);
+              // Skip this document and continue
+            }
+          });
+          
+          console.log(`subscribeToUsers: Successfully processed ${users.length} users from Firestore`);
+          callback(users);
+        } catch (processingError) {
+          console.error('subscribeToUsers: Error processing query snapshot:', processingError);
+          console.error('Error stack:', processingError.stack);
+          callback([]);
+        }
+      }, 
+      (error) => {
+        console.error('subscribeToUsers: Firestore subscription error:', error);
+        console.error('Error details:', {
+          code: error.code,
+          message: error.message,
+          stack: error.stack,
+          name: error.name
         });
         
-        callback(users);
-      }, (error) => {
-        console.error('Firestore subscription error:', error);
+        // If permission denied, log auth status
+        if (error.code === 'permission-denied') {
+          console.error('subscribeToUsers: Permission denied - Auth status:', {
+            hasAuthUser: !!auth.currentUser,
+            authUserId: auth.currentUser?.uid,
+            authUserEmail: auth.currentUser?.email
+          });
+          console.error('subscribeToUsers: Make sure Firestore rules are deployed and require authentication');
+          console.error('subscribeToUsers: To deploy rules, run: firebase deploy --only firestore:rules');
+        }
+        
         // Return empty array on error but don't break the app
         callback([]); // Return empty array on error
-      });
-    } catch (error) {
-      console.error('Firestore subscription setup error:', error);
-      callback([]); // Return empty array on error
-      return () => {}; // Return empty unsubscribe function
-    }
-  } else {
-    console.warn('Firestore not available, returning empty user list');
-    callback([]); // Return empty array if Firestore is not available
+      }
+    );
+    
+    console.log('subscribeToUsers: Subscription created successfully');
+    return unsubscribe;
+  } catch (error) {
+    console.error('subscribeToUsers: Firestore subscription setup error:', error);
+    console.error('Error details:', {
+      code: error.code,
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
+    callback([]); // Return empty array on error
     return () => {}; // Return empty unsubscribe function
   }
 };
 
 // Function to check if a user is a friend
 export const isUserFriend = async (friendUid) => {
-  if (!currentUser || !db) {
+  // Use auth.currentUser as fallback if currentUser is not set
+  const authUser = auth.currentUser;
+  const user = currentUser || authUser;
+  
+  if (!user || !db) {
     return false;
   }
 
   try {
     // Get the current user's document to check their friends list
-    const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+    const userDoc = await getDoc(doc(db, 'users', user.uid));
     
     if (userDoc.exists()) {
       const userData = userDoc.data();

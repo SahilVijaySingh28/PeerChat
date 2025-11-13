@@ -1,7 +1,7 @@
-# FlashChat WebRTC ICE Candidate and Duplicate Offer Fix Report
+# PeerChat WebRTC ICE Candidate and Duplicate Offer Fix Report
 
 ## Issue Description
-During video calls in FlashChat, multiple errors and warnings were appearing in the browser console related to ICE candidates and duplicate offers:
+During video calls in PeerChat, multiple errors and warnings were appearing in the browser console related to ICE candidates and duplicate offers:
 
 1. "Error adding ICE candidate: TypeError: Cannot use 'in' operator to search for '_delegate' in undefined"
 2. "Offer already handled, skipping"

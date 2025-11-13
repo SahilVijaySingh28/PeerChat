@@ -1,9 +1,9 @@
-FlashChat Online Status Bug Fix Report
+PeerChat Online Status Bug Fix Report
 =====================================
 
 Issue Description:
 ------------------
-Friends were showing as "Offline" even when they were online in the FlashChat application. Users were seeing "Offline" status or incorrect last seen timestamps for their friends who were actually online.
+Friends were showing as "Offline" even when they were online in the PeerChat application. Users were seeing "Offline" status or incorrect last seen timestamps for their friends who were actually online.
 
 Root Cause Analysis:
 --------------------
@@ -64,4 +64,4 @@ Expected Results:
 
 Additional Notes:
 -----------------
-The fix ensures that the FlashChat application can properly handle users with large friend lists while maintaining real-time status updates and respecting user privacy preferences.
+The fix ensures that the PeerChat application can properly handle users with large friend lists while maintaining real-time status updates and respecting user privacy preferences.

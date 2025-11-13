@@ -1,4 +1,4 @@
-# FlashChat Duplicate Phone Button Removal
+# PeerChat Duplicate Phone Button Removal
 
 ## Issue Description
 The video call interface had two Phone (end call) buttons:

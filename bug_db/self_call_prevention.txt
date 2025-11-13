@@ -1,4 +1,4 @@
-# FlashChat Self-Call Prevention Feature
+# PeerChat Self-Call Prevention Feature
 
 ## Feature Description
 Implemented functionality to prevent users from making video or audio calls to themselves, which would be an invalid operation.
@@ -30,7 +30,7 @@ if (selectedChat.uid === user?.uid) {
 ```
 
 ## Verification Steps
-1. Log in to FlashChat as a user
+1. Log in to PeerChat as a user
 2. Navigate to your own chat (if accessible)
 3. Attempt to initiate a video call
 4. Verify that an alert message appears: "You cannot make a video call to yourself."

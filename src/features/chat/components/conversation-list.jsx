@@ -176,14 +176,22 @@ export function ConversationList({ onSelectChat }) {
       }, 2000);
     } catch (error) {
       console.error('Friend request error:', error);
-      if (error.message === 'User with this email not found') {
+      // Handle specific error messages from the service
+      if (error.message.includes('not found') || error.message === 'User with this email not found') {
         setFriendRequestStatus('User not found. Please check the email address.');
-      } else if (error.message === 'Permission denied. You may not have access to send friend requests.') {
-        setFriendRequestStatus('Permission denied. Please check your account permissions.');
-      } else if (error.message === 'Too many requests. Please wait a moment and try again.') {
+      } else if (error.message.includes('Permission denied') || error.message.includes('permission')) {
+        setFriendRequestStatus('Permission denied. Please ensure you are logged in and try again.');
+      } else if (error.message.includes('already') || error.message.includes('Already')) {
+        // Handle messages about existing relationships (already friends, request already sent, etc.)
+        setFriendRequestStatus(error.message);
+      } else if (error.message.includes('Rate limit') || error.message.includes('Too many requests')) {
         setFriendRequestStatus('Too many requests. Please wait a moment and try again.');
+      } else if (error.message.includes('temporarily unavailable') || error.message.includes('unavailable')) {
+        setFriendRequestStatus('Service temporarily unavailable. Please check your internet connection and try again.');
+      } else if (error.message.includes('cannot add yourself')) {
+        setFriendRequestStatus('You cannot add yourself as a friend.');
       } else {
-        setFriendRequestStatus('Failed to send friend request. Please try again.');
+        setFriendRequestStatus(error.message || 'Failed to send friend request. Please try again.');
       }
     }
   };

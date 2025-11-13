@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document outlines the testing and validation phase for the FlashChat application after restructuring and refactoring.
+This document outlines the testing and validation phase for the PeerChat application after restructuring and refactoring.
 
 ## Testing Strategy
 

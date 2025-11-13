@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Script to verify the FlashChat application structure after restructuring
+ * Script to verify the PeerChat application structure after restructuring
  */
 
 import fs from 'fs';
@@ -148,7 +148,7 @@ function checkOldStructureRemoved() {
 
 // Main verification function
 function verifyStructure() {
-  console.log('🔍 Verifying FlashChat application structure...\\n');
+  console.log('🔍 Verifying PeerChat application structure...\\n');
   
   // Check directory structure
   console.log('📂 Checking directory structure:');

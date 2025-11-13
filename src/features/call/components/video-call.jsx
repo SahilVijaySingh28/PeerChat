@@ -55,7 +55,7 @@ export function VideoCall({ selectedChat, onClose, onCallEnd, role = 'caller', c
     ? remoteUser.name || remoteUser.displayName || remoteUser.email || "Unknown User"
     : (selectedChat 
         ? selectedChat.name 
-        : "FlashChat");
+        : "PeerChat");
 
   // Fetch remote user data based on role
   useEffect(() => {

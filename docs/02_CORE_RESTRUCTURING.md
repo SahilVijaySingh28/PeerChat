@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document outlines the core restructuring phase for the FlashChat application, focusing on organizing the codebase according to the new feature-based modular architecture.
+This document outlines the core restructuring phase for the PeerChat application, focusing on organizing the codebase according to the new feature-based modular architecture.
 
 ## Current Structure Analysis
 

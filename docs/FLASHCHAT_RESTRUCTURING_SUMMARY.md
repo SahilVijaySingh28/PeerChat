@@ -1,8 +1,8 @@
-# FlashChat Application Restructuring - Complete Summary
+# PeerChat Application Restructuring - Complete Summary
 
 ## Overview
 
-This document provides a comprehensive summary of the restructuring efforts for the FlashChat web application, covering all eight phases of the improvement plan.
+This document provides a comprehensive summary of the restructuring efforts for the PeerChat web application, covering all eight phases of the improvement plan.
 
 ## Phase 1: Preparation (Completed)
 
@@ -14,7 +14,7 @@ This document provides a comprehensive summary of the restructuring efforts for 
 
 ### Directory Structure Created
 ```
-flashchat/
+peerchat/
 ├── src/
 │   ├── app/
 │   │   └── routes/
@@ -186,4 +186,4 @@ flashchat/
 
 ## Conclusion
 
-The restructuring of the FlashChat application has significantly improved the codebase organization, making it more maintainable, scalable, and easier to work with. The feature-based modular architecture provides a clear structure for future development while the custom hooks and utilities promote code reuse and consistency. With proper testing and documentation, this restructured codebase will provide a solid foundation for continued growth and improvement of the FlashChat application.
+The restructuring of the PeerChat application has significantly improved the codebase organization, making it more maintainable, scalable, and easier to work with. The feature-based modular architecture provides a clear structure for future development while the custom hooks and utilities promote code reuse and consistency. With proper testing and documentation, this restructured codebase will provide a solid foundation for continued growth and improvement of the PeerChat application.

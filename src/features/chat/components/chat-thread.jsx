@@ -228,7 +228,7 @@ ${emojis.join(' ')}`);
       <div className="h-full flex flex-col items-center justify-center p-4 bg-card rounded-xl border shadow-sm mobile-chat-thread">
         <div className="text-center max-w-xs">
           <MessageCircle className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-          <h3 className="text-responsive-xl font-semibold mb-2">FlashChat</h3>
+          <h3 className="text-responsive-xl font-semibold mb-2">PeerChat</h3>
           <p className="text-muted-foreground mb-6 text-responsive-sm">
             Select a conversation to start chatting
           </p>
@@ -242,7 +242,7 @@ ${emojis.join(' ')}`);
     ? selectedChat.uid === user?.uid 
       ? "Me" 
       : selectedChat.name || selectedChat.displayName || selectedChat.email || "Unknown User"
-    : "FlashChat";
+    : "PeerChat";
 
   return (
     <div className="h-[90vh] flex flex-col bg-card rounded-xl border shadow-sm mobile-chat-thread">
