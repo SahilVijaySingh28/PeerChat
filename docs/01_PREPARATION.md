@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document outlines the preparation phase for restructuring the FlashChat application to improve its project structure.
+This document outlines the preparation phase for restructuring the PeerChat application to improve its project structure.
 
 ## Tasks Completed
 
@@ -14,7 +14,7 @@ This document outlines the preparation phase for restructuring the FlashChat app
 ## Directory Structure Created
 
 ```
-flashchat/
+peerchat/
 ├── src/
 │   ├── app/
 │   │   └── routes/

@@ -1,4 +1,4 @@
-# Contributing to FlashChat
+# Contributing to PeerChat
 
 ## Code Style and Formatting
 

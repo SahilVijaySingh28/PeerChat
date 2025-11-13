@@ -244,4 +244,4 @@ These fixes collectively address:
 4. **Queue Processing**: Ensures proper ordering of ICE candidates
 5. **Resource Cleanup**: Properly cleans up all resources when calls end
 
-The implementation maintains backward compatibility while significantly improving the reliability and stability of the WebRTC connections in FlashChat.
+The implementation maintains backward compatibility while significantly improving the reliability and stability of the WebRTC connections in PeerChat.

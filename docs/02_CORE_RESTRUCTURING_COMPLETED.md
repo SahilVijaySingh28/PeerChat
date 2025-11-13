@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document summarizes the completion of the core restructuring phase for the FlashChat application, which involved organizing the codebase according to the new feature-based modular architecture.
+This document summarizes the completion of the core restructuring phase for the PeerChat application, which involved organizing the codebase according to the new feature-based modular architecture.
 
 ## Summary of Changes
 
@@ -44,7 +44,7 @@ Created feature directories with their respective components and services:
 ## New Directory Structure
 
 ```
-flashchat/
+peerchat/
 ├── src/
 │   ├── app/
 │   │   └── routes/

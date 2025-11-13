@@ -1,7 +1,7 @@
 # Call Service Documentation
 
 ## Overview
-The Call Service handles WebRTC-based audio and video calling functionality in FlashChat, including call signaling through Firestore, ICE candidate exchange, and call status management.
+The Call Service handles WebRTC-based audio and video calling functionality in PeerChat, including call signaling through Firestore, ICE candidate exchange, and call status management.
 
 ## WebRTC Configuration
 

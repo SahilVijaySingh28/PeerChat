@@ -9,12 +9,12 @@ export const useTheme = () => {
     document.documentElement.classList.toggle('light', theme === 'light');
     
     // Save theme to localStorage
-    localStorage.setItem('flashchat-theme', theme);
+    localStorage.setItem('peerchat-theme', theme);
   }, [theme]);
 
   // Load theme from localStorage on initial render
   useEffect(() => {
-    const savedTheme = localStorage.getItem('flashchat-theme');
+    const savedTheme = localStorage.getItem('peerchat-theme');
     if (savedTheme) {
       setTheme(savedTheme);
     }

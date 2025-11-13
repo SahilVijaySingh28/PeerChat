@@ -1,7 +1,7 @@
 # User Service Documentation
 
 ## Overview
-The User Service handles all user-related functionality in FlashChat, including authentication, friend management, online status tracking, and user search capabilities.
+The User Service handles all user-related functionality in PeerChat, including authentication, friend management, online status tracking, and user search capabilities.
 
 ## Authentication Functions
 

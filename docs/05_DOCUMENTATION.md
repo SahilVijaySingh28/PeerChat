@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document outlines the documentation and guidelines phase for the FlashChat application, focusing on creating comprehensive documentation to accompany the new structure.
+This document outlines the documentation and guidelines phase for the PeerChat application, focusing on creating comprehensive documentation to accompany the new structure.
 
 ## Documentation Plan
 

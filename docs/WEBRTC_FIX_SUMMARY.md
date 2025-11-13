@@ -1,4 +1,4 @@
-# FlashChat WebRTC Fix Summary
+# PeerChat WebRTC Fix Summary
 
 ## Issues Fixed
 

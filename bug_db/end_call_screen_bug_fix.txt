@@ -1,7 +1,7 @@
-# FlashChat - End Call Screen Bug Fix Report
+# PeerChat - End Call Screen Bug Fix Report
 
 ## Issue Description
-When a video call starts in FlashChat, the UI div with class "flex items-center justify-between p-4 border-b" appears to show in-call controls. However, when either user disconnects or ends the call, this call interface does not automatically hide/unmount on both ends.
+When a video call starts in PeerChat, the UI div with class "flex items-center justify-between p-4 border-b" appears to show in-call controls. However, when either user disconnects or ends the call, this call interface does not automatically hide/unmount on both ends.
 
 ### Expected Behavior
 - When either user disconnects or ends the call, the call interface (including the header div) should automatically hide/unmount on both ends.

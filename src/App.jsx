@@ -80,18 +80,33 @@ export default function App() {
       const shouldAppearOffline = user.appearOffline || false;
       
       if (shouldAppearOffline) {
-        // If user chose to appear offline, set them as offline
-        updateUserOnlineStatus(false);
+        // If user chose to appear offline, set them as offline (immediate update)
+        updateUserOnlineStatus(false, true);
       } else {
         // Track initial activity
         trackUserActivity();
         
-        // Set up event listeners for user activity
-        const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
-        const handleActivity = () => trackUserActivity();
+        // Set up event listeners for user activity with throttling
+        // Only listen to less frequent events to reduce Firestore writes
+        const events = ['mousedown', 'keypress', 'scroll', 'touchstart'];
+        let activityThrottleTimer = null;
+        
+        const handleActivity = () => {
+          // Throttle activity tracking to max once per 2 seconds
+          if (activityThrottleTimer) {
+            return;
+          }
+          
+          trackUserActivity();
+          
+          // Set throttle timer
+          activityThrottleTimer = setTimeout(() => {
+            activityThrottleTimer = null;
+          }, 2000); // 2 seconds throttle
+        };
         
         events.forEach(event => {
-          window.addEventListener(event, handleActivity);
+          window.addEventListener(event, handleActivity, { passive: true });
         });
         
         // Cleanup
@@ -99,6 +114,10 @@ export default function App() {
           events.forEach(event => {
             window.removeEventListener(event, handleActivity);
           });
+          
+          if (activityThrottleTimer) {
+            clearTimeout(activityThrottleTimer);
+          }
           
           // Clear activity timer on unmount
           if (window.userActivityTimer) {
@@ -141,7 +160,7 @@ export default function App() {
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mb-4"></div>
-          <p className="text-muted-foreground">Loading FlashChat...</p>
+          <p className="text-muted-foreground">Loading PeerChat...</p>
         </div>
       </div>
     );
@@ -154,9 +173,9 @@ export default function App() {
           <div className="container flex items-center justify-between h-16 px-4">
             <div className="flex items-center gap-2">
               <div className="bg-primary rounded-full w-8 h-8 flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-lg">FC</span>
+                <span className="text-primary-foreground font-bold text-lg">PC</span>
               </div>
-              <h1 className="text-xl font-bold">FlashChat</h1>
+              <h1 className="text-xl font-bold">PeerChat</h1>
             </div>
             <button
               onClick={toggleTheme}
@@ -169,7 +188,7 @@ export default function App() {
         <main className="container max-w-4xl mx-auto p-4">
           <div className="bg-card rounded-xl border shadow-sm p-6 sm:p-8">
             <div className="text-center">
-              <h2 className="text-2xl font-bold mb-2">Welcome to FlashChat</h2>
+              <h2 className="text-2xl font-bold mb-2">Welcome to PeerChat</h2>
               <p className="text-muted-foreground mb-6">
                 Sign in to start messaging and making calls with your friends.
               </p>
@@ -221,9 +240,9 @@ export default function App() {
           <div className="container flex items-center justify-between h-16 px-4">
             <div className="flex items-center gap-2">
               <div className="bg-primary rounded-full w-8 h-8 flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-lg">FC</span>
+                <span className="text-primary-foreground font-bold text-lg">PC</span>
               </div>
-              <h1 className="text-xl font-bold">FlashChat</h1>
+              <h1 className="text-xl font-bold">PeerChat</h1>
             </div>
             <div className="flex items-center gap-3">
               <button
@@ -387,7 +406,7 @@ export default function App() {
                 <div className="h-[calc(90vh-108px)] flex items-center justify-center p-4">
                   <div className="text-center max-w-md">
                     <MessageCircle className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-                    <h2 className="text-2xl font-bold mb-2">Welcome to FlashChat</h2>
+                    <h2 className="text-2xl font-bold mb-2">Welcome to PeerChat</h2>
                     <p className="text-muted-foreground mb-6">
                       Select a conversation or add friends to start chatting.
                     </p>

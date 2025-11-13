@@ -1,12 +1,12 @@
-# FlashChat API Documentation
+# PeerChat API Documentation
 
 ## Overview
-FlashChat uses Firebase as its backend infrastructure, leveraging Firestore for real-time data storage and Firebase Authentication for user management. This document describes the data models, collections, and key operations used in the application.
+PeerChat uses Firebase as its backend infrastructure, leveraging Firestore for real-time data storage and Firebase Authentication for user management. This document describes the data models, collections, and key operations used in the application.
 
 ## Authentication
 
 ### Firebase Authentication
-FlashChat uses Firebase Authentication with Google Sign-In provider. User authentication is handled through the `signInWithGoogle` function in the auth service.
+PeerChat uses Firebase Authentication with Google Sign-In provider. User authentication is handled through the `signInWithGoogle` function in the auth service.
 
 **Authentication Flow:**
 1. User clicks "Sign in with Google"
@@ -377,7 +377,7 @@ service cloud.firestore {
 ## Rate Limiting
 
 ### Call Rate Limiting
-To prevent abuse, FlashChat implements rate limiting for calls:
+To prevent abuse, PeerChat implements rate limiting for calls:
 
 ```javascript
 // Rate limiting configuration
@@ -416,4 +416,4 @@ const MAX_CALLS_PER_WINDOW = 3;  // Max 3 calls per window
 2. **Sharding**: Distribute data across multiple documents for high-write scenarios
 3. **Aggregation**: Precompute aggregated data for frequently accessed statistics
 
-This API documentation provides a comprehensive overview of FlashChat's data model and operations, enabling developers to understand and extend the application effectively.
+This API documentation provides a comprehensive overview of PeerChat's data model and operations, enabling developers to understand and extend the application effectively.

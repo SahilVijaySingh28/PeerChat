@@ -1,8 +1,8 @@
-# FlashChat
+# PeerChat
 
-![FlashChat Interface](https://github.com/user-attachments/assets/fd914aa9-c7fd-44ce-a876-d723ab745085)
+![PeerChat Interface](https://github.com/user-attachments/assets/fd914aa9-c7fd-44ce-a876-d723ab745085)
 
-FlashChat is a modern real-time communication platform built with React, Firebase, and WebRTC. It provides instant messaging and audio/video calling capabilities with a focus on user experience and performance.
+PeerChat is a modern real-time communication platform built with React, Firebase, and WebRTC. It provides instant messaging and audio/video calling capabilities with a focus on user experience and performance.
 
 ## Features
 
@@ -37,8 +37,8 @@ FlashChat is a modern real-time communication platform built with React, Firebas
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-username/flashchat.git
-   cd flashchat
+   git clone https://github.com/your-username/peerchat.git
+   cd peerchat
    ```
 
 2. Install dependencies:
@@ -104,7 +104,7 @@ For detailed documentation, please see:
 
 ## Testing
 
-FlashChat includes comprehensive tests:
+PeerChat includes comprehensive tests:
 
 ```bash
 # Run all tests

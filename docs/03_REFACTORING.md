@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document outlines the refactoring phase for the FlashChat application, focusing on improving the codebase structure and implementation following the new feature-based modular architecture.
+This document outlines the refactoring phase for the PeerChat application, focusing on improving the codebase structure and implementation following the new feature-based modular architecture.
 
 ## Goals
 

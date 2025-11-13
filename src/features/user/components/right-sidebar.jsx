@@ -4,6 +4,8 @@ import { OnlineStatus } from "@/shared/components/online-status"
 import { Search } from "lucide-react"
 import { useState, useEffect, useRef } from "react"
 import { subscribeToUsers, getCurrentUser, subscribeToFriendRequests, acceptFriendRequest, declineFriendRequest, subscribeToNotifications, markNotificationAsRead, updateUserOnlineStatusPrivacy, sendFriendRequest, isUserFriend } from "@/features/user/services/userService"
+import { auth } from "@/config/firebase"
+import { onAuthStateChanged } from "firebase/auth"
 
 export function RightSidebar({ onUserClick }) {
   const [members, setMembers] = useState([])
@@ -12,12 +14,46 @@ export function RightSidebar({ onUserClick }) {
   const [showNotifications, setShowNotifications] = useState(false)
   const [friendRequestStatus, setFriendRequestStatus] = useState({})
   const [notificationStatus, setNotificationStatus] = useState({})
+  const [authUserId, setAuthUserId] = useState(auth.currentUser?.uid || null)
   const currentUser = getCurrentUser()
   const usersSubscriptionRef = useRef(null)
   const friendRequestsSubscriptionRef = useRef(null)
   const notificationsSubscriptionRef = useRef(null)
+  
+  // Listen for auth state changes
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setAuthUserId(user?.uid || null);
+    });
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
+    // Get current user - try getCurrentUser first, then fall back to auth.currentUser
+    const user = getCurrentUser() || auth.currentUser;
+    const userId = user?.uid || authUserId;
+    
+    // Only set up subscriptions if user is authenticated
+    if (!userId) {
+      console.log('RightSidebar: No current user, skipping subscriptions');
+      setMembers([]);
+      setFriendRequests([]);
+      setNotifications([]);
+      return;
+    }
+    
+    // Verify user is actually authenticated
+    if (!auth.currentUser) {
+      console.warn('RightSidebar: auth.currentUser is null, waiting for authentication...');
+      // Retry after a short delay
+      const retryTimer = setTimeout(() => {
+        // This will trigger the useEffect again when authUserId changes
+      }, 1000);
+      return () => clearTimeout(retryTimer);
+    }
+    
+    console.log('RightSidebar: Setting up subscriptions for authenticated user:', userId);
+
     // Clean up previous subscriptions
     if (usersSubscriptionRef.current) {
       usersSubscriptionRef.current();
@@ -34,40 +70,63 @@ export function RightSidebar({ onUserClick }) {
       notificationsSubscriptionRef.current = null;
     }
 
-    // Subscribe to all users from Firestore
+    const currentUserId = userId;
+
+    // Subscribe to all users from Firestore - all logged-in users can see all members
+    console.log('RightSidebar: Setting up users subscription...');
     usersSubscriptionRef.current = subscribeToUsers((users) => {
-      console.log('Users updated:', users); // Debug log
-      // Transform users data to match the expected format
-      const memberList = (Array.isArray(users) ? users : []).map(user => ({
-        name: user.name || user.displayName || user.email || `User${user.uid.substring(0, 5)}`,
-        role: user.uid === currentUser?.uid ? "You" : "",
-        email: user.email,
-        photoURL: user.photoURL,
-        uid: user.uid,
-        isOnline: user.isOnline || false,
-        lastSeen: user.lastSeen || null,
-        // Pass the entire user object so OnlineStatus can access all properties
-        ...user
-      }));
+      console.log('RightSidebar: Users callback received:', users.length, 'users');
+      console.log('RightSidebar: Users data:', users);
       
-      console.log('Member list:', memberList); // Debug log
+      // Filter out invalid users and transform users data to match the expected format
+      const memberList = (Array.isArray(users) ? users : [])
+        .filter(user => {
+          // Only include users with valid uid
+          if (!user || !user.uid) {
+            console.warn('RightSidebar: Filtering out invalid user:', user);
+            return false;
+          }
+          // Include ALL users - no filtering
+          return true;
+        })
+        .map(user => ({
+          name: user.name || user.displayName || user.email || `User${(user.uid || '').substring(0, 5)}`,
+          displayName: user.displayName || user.name || user.email || '',
+          role: user.uid === currentUserId ? "You" : "",
+          email: user.email || '',
+          photoURL: user.photoURL || '',
+          uid: user.uid,
+          isOnline: user.isOnline || false,
+          lastSeen: user.lastSeen || null,
+          // Pass the entire user object so OnlineStatus can access all properties
+          ...user
+        }));
       
-      // Sort to put current user at the top
+      console.log('RightSidebar: Member list processed:', memberList.length, 'members');
+      console.log('RightSidebar: Member list:', memberList);
+      
+      // Sort to put current user at the top, then alphabetically by name
       memberList.sort((a, b) => {
         if (a.role === "You") return -1;
         if (b.role === "You") return 1;
-        return 0;
+        // Sort alphabetically by name
+        const nameA = (a.name || '').toLowerCase();
+        const nameB = (b.name || '').toLowerCase();
+        return nameA.localeCompare(nameB);
       });
       
+      console.log('RightSidebar: Setting members state with', memberList.length, 'members');
       setMembers(memberList);
     });
+    
+    console.log('RightSidebar: Users subscription set up, unsubscribe function:', usersSubscriptionRef.current);
 
-    // Subscribe to friend requests
+    // Subscribe to friend requests (only if user is authenticated)
     friendRequestsSubscriptionRef.current = subscribeToFriendRequests((requests) => {
       setFriendRequests(Array.isArray(requests) ? requests : []);
     });
 
-    // Subscribe to notifications
+    // Subscribe to notifications (only if user is authenticated)
     notificationsSubscriptionRef.current = subscribeToNotifications((notifications) => {
       setNotifications(Array.isArray(notifications) ? notifications : []);
     });
@@ -89,7 +148,7 @@ export function RightSidebar({ onUserClick }) {
         notificationsSubscriptionRef.current = null;
       }
     };
-  }, []);
+  }, [currentUser?.uid, authUserId]); // Re-run when currentUser.uid or authUserId changes
 
   // Monitor online/offline status
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -432,55 +491,99 @@ export function RightSidebar({ onUserClick }) {
         </section>
       )}
       
-      {/* Members List */}
+      {/* Members List - People Section */}
       <section className="flex-1 rounded-xl border bg-card p-4 shadow-sm flex flex-col min-h-0">
-        <div className="mb-3 flex items-center justify-between">
+        <div className="mb-3 flex items-center justify-between flex-shrink-0">
           <h3 className="text-base font-semibold">People</h3>
           <span className="text-xs bg-secondary text-secondary-foreground rounded-full px-2 py-1">
             {members.length}
           </span>
         </div>
         <div className="space-y-2 overflow-y-auto flex-1 min-h-0">
-          {members.map((member) => (
-            <div
-              key={member.uid}
-              onClick={() => handleUserClick(member)}
-              className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted cursor-pointer transition-colors group"
-            >
-              <div className="relative">
-                <Avatar className="h-10 w-10">
-                  <AvatarImage src={member.photoURL || "/diverse-avatars.png"} alt={member.name} />
-                  <AvatarFallback className="bg-secondary">
-                    {member.name?.charAt(0)?.toUpperCase() || 'U'}
-                  </AvatarFallback>
-                </Avatar>
-                {member.isOnline && member.role !== "You" && (
-                  <div className="absolute bottom-0 right-0 h-3 w-3 bg-green-500 rounded-full border-2 border-card"></div>
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <div className="font-medium truncate text-sm">{member.role === "You" ? "Me" : member.name}</div>
-                  {member.role === "You" && (
-                    <span className="text-xs bg-primary text-primary-foreground rounded px-1.5 py-0.5">
-                      You
-                    </span>
+          {members.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full py-8 text-center text-muted-foreground">
+              <User className="h-12 w-12 mb-3 opacity-50" />
+              <p className="text-sm">No users found</p>
+              <p className="text-xs mt-1">Registered users will appear here</p>
+            </div>
+          ) : (
+            members.map((member) => (
+              <div
+                key={member.uid}
+                onClick={() => handleUserClick(member)}
+                className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted cursor-pointer transition-colors group"
+              >
+                <div className="relative flex-shrink-0">
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={member.photoURL || "/diverse-avatars.png"} alt={member.name} />
+                    <AvatarFallback className="bg-secondary text-xs">
+                      {member.name?.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() || 
+                       member.email?.substring(0, 2).toUpperCase() || 
+                       'U'}
+                    </AvatarFallback>
+                  </Avatar>
+                  <OnlineStatus 
+                    isOnline={member.isOnline} 
+                    lastSeen={member.lastSeen} 
+                    size="sm" 
+                    user={member} 
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <div className="font-medium truncate text-sm">
+                      {member.role === "You" ? "Me" : member.name || member.email || 'Unknown User'}
+                    </div>
+                    {member.role === "You" && (
+                      <span className="text-xs bg-primary text-primary-foreground rounded px-1.5 py-0.5 flex-shrink-0">
+                        You
+                      </span>
+                    )}
+                  </div>
+                  {member.email && member.role !== "You" && (
+                    <div className="text-xs text-muted-foreground truncate">
+                      {member.email}
+                    </div>
+                  )}
+                  {member.role !== "You" && (
+                    <div className="flex items-center text-xs text-muted-foreground mt-1">
+                      <OnlineStatus 
+                        isOnline={member.isOnline} 
+                        lastSeen={member.lastSeen} 
+                        showText={true} 
+                        size="sm" 
+                        user={member} 
+                      />
+                    </div>
                   )}
                 </div>
-                <div className="flex items-center text-xs text-muted-foreground">
-                  <OnlineStatus isOnline={member.isOnline} lastSeen={member.lastSeen} showText={true} size="sm" user={member} />
-                </div>
+                {member.role !== "You" && (
+                  <div className="opacity-0 group-hover:opacity-100 flex gap-1 transition-opacity flex-shrink-0">
+                    <button 
+                      className="p-1.5 rounded-full hover:bg-secondary"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        // Handle phone call
+                      }}
+                      aria-label="Call"
+                    >
+                      <Phone className="h-4 w-4" />
+                    </button>
+                    <button 
+                      className="p-1.5 rounded-full hover:bg-secondary"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        // Handle video call
+                      }}
+                      aria-label="Video call"
+                    >
+                      <Video className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
               </div>
-              <div className="opacity-0 group-hover:opacity-100 flex gap-1 transition-opacity">
-                <button className="p-1.5 rounded-full hover:bg-secondary">
-                  <Phone className="h-4 w-4" />
-                </button>
-                <button className="p-1.5 rounded-full hover:bg-secondary">
-                  <Video className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </section>
     </div>

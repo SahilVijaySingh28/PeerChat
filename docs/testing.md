@@ -1,10 +1,10 @@
-# FlashChat Testing Documentation
+# PeerChat Testing Documentation
 
 ## Overview
-This document outlines the testing strategy, tools, and best practices for the FlashChat application. The goal is to ensure code quality, reliability, and maintainability through comprehensive testing.
+This document outlines the testing strategy, tools, and best practices for the PeerChat application. The goal is to ensure code quality, reliability, and maintainability through comprehensive testing.
 
 ## Testing Philosophy
-FlashChat follows a testing pyramid approach:
+PeerChat follows a testing pyramid approach:
 1. **Unit Tests** (70%): Test individual functions and components in isolation
 2. **Integration Tests** (20%): Test interactions between modules and services
 3. **End-to-End Tests** (10%): Test complete user workflows
@@ -447,4 +447,4 @@ describe('searchFriends', () => {
 3. Clear timeouts and intervals
 4. Reset global state between tests
 
-This testing strategy ensures that FlashChat maintains high quality and reliability as it evolves and grows.
+This testing strategy ensures that PeerChat maintains high quality and reliability as it evolves and grows.

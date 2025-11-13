@@ -1,13 +1,13 @@
-# FlashChat Project Structure Documentation
+# PeerChat Project Structure Documentation
 
 ## Overview
 
-This document provides an overview of the FlashChat application's project structure, following a feature-based modular architecture to improve maintainability, scalability, and readability.
+This document provides an overview of the PeerChat application's project structure, following a feature-based modular architecture to improve maintainability, scalability, and readability.
 
 ## Directory Structure
 
 ```
-flashchat/
+peerchat/
 ├── src/
 │   ├── app/                     # Application entry point and routing
 │   │   ├── routes/              # Route definitions

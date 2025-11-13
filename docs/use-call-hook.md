@@ -1,7 +1,7 @@
 # useCall Hook Documentation
 
 ## Overview
-The `useCall` hook manages the state and functionality for WebRTC-based audio and video calls in FlashChat. It handles media streams, peer connections, call status, and UI state.
+The `useCall` hook manages the state and functionality for WebRTC-based audio and video calls in PeerChat. It handles media streams, peer connections, call status, and UI state.
 
 ## Usage
 

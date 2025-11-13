@@ -1,26 +1,36 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow read/write access to all users for chat messages and users collections
+    // Allow read/write access to all authenticated users
+    // For development/testing - allows all authenticated users to see all users
     match /messages/{document} {
-      allow read, write: if true;
+      allow read, write: if request.auth != null;
     }
     
-    match /users/{document} {
-      allow read, write: if true;
+    // Users collection - allow authenticated users to read all, write any
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
     }
     
+    // User plans collection
     match /userPlans/{document} {
-      allow read, write: if true;
+      allow read, write: if request.auth != null;
     }
     
+    // Plans collection
     match /plans/{document} {
-      allow read: if true;
+      allow read: if request.auth != null;
     }
     
-    // Allow public read access to other collections
+    // Calls collection
+    match /calls/{document} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Default: allow authenticated users
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if request.auth != null;
     }
   }
 }

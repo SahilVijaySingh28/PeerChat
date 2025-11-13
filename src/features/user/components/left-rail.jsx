@@ -67,7 +67,7 @@ export function LeftRail() {
       {/* Brand coin */}
       <div
         className="grid h-12 w-12 place-items-center rounded-full border bg-secondary">
-        <img src="/logo.png" alt="FlashChat Logo" className="h-8 w-8 object-contain" />
+        <img src="/logo.png" alt="PeerChat Logo" className="h-8 w-8 object-contain" />
       </div>
       <div className="hidden flex-1 flex-col gap-3 lg:flex">
         <RailIcon icon={Home} label="Home" onClick={handleHome} />

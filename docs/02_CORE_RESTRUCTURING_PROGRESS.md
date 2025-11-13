@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document tracks the progress of the core restructuring phase for the FlashChat application.
+This document tracks the progress of the core restructuring phase for the PeerChat application.
 
 ## Completed Tasks
 

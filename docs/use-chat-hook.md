@@ -1,7 +1,7 @@
 # useChat Hook Documentation
 
 ## Overview
-The `useChat` hook manages the state and functionality for chat messaging in FlashChat. It handles message input, sending messages, subscribing to message streams, and managing chat-related UI state.
+The `useChat` hook manages the state and functionality for chat messaging in PeerChat. It handles message input, sending messages, subscribing to message streams, and managing chat-related UI state.
 
 ## Usage
 

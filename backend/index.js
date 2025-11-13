@@ -39,7 +39,7 @@ const io = new Server(server, {
       "http://localhost:5178", 
       "http://localhost:5179", 
       "http://localhost:5180",
-      "https://flashchat-coral.vercel.app"
+      "https://peerchat-coral.vercel.app"
     ],
     methods: ["GET", "POST"],
     credentials: true

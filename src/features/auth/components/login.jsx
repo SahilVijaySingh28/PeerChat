@@ -38,7 +38,7 @@ export function Login({ onLoginSuccess }) {
     <div className="min-h-dvh flex items-center justify-center bg-background">
       <div className="w-full max-w-md p-8 space-y-8 bg-card rounded-xl border">
         <div className="text-center">
-          <h2 className="text-2xl font-bold">Welcome to FlashChat</h2>
+          <h2 className="text-2xl font-bold">Welcome to PeerChat</h2>
           <p className="mt-2 text-muted-foreground">
             Sign in with your Google account to start chatting
           </p>

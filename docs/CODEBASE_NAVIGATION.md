@@ -1,8 +1,8 @@
-# FlashChat Codebase Navigation Guide
+# PeerChat Codebase Navigation Guide
 
 ## Overview
 
-This guide explains how to navigate the FlashChat codebase, which follows a feature-based modular architecture.
+This guide explains how to navigate the PeerChat codebase, which follows a feature-based modular architecture.
 
 ## Finding Components
 

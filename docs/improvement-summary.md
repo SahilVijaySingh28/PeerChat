@@ -1,7 +1,7 @@
-# FlashChat Improvement Summary
+# PeerChat Improvement Summary
 
 ## Overview
-This document summarizes the improvements made to the FlashChat application to enhance its structure, documentation, testing, and overall code quality.
+This document summarizes the improvements made to the PeerChat application to enhance its structure, documentation, testing, and overall code quality.
 
 ## Phase 1: Documentation Improvements
 
@@ -190,4 +190,4 @@ Added comprehensive JSDoc comments to:
 - Include health check endpoints
 - Set up alerting for critical issues
 
-These improvements provide a solid foundation for the continued development and maintenance of FlashChat, ensuring it remains a high-quality, scalable, and maintainable application.
+These improvements provide a solid foundation for the continued development and maintenance of PeerChat, ensuring it remains a high-quality, scalable, and maintainable application.

@@ -1,7 +1,7 @@
 # Week 1: Fix Current Firestore Implementation
 
 ## Overview
-This week focused on fixing the current Firestore implementation to ensure real-time messaging works properly in the FlashChat application.
+This week focused on fixing the current Firestore implementation to ensure real-time messaging works properly in the PeerChat application.
 
 ## Issues Identified
 1. **Nested onSnapshot calls**: The original implementation had nested `onSnapshot` calls which could cause duplicate subscriptions and memory leaks.

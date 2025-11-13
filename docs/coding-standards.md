@@ -1,7 +1,7 @@
-# FlashChat Coding Standards
+# PeerChat Coding Standards
 
 ## Overview
-This document outlines the coding standards and best practices for the FlashChat project. Following these standards ensures code consistency, maintainability, and readability across the codebase.
+This document outlines the coding standards and best practices for the PeerChat project. Following these standards ensures code consistency, maintainability, and readability across the codebase.
 
 ## General Principles
 

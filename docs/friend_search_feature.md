@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the implementation of the friend list search feature for the FlashChat application. The feature allows users to search for friends within their friend list only, ensuring privacy and a focused search experience.
+This document describes the implementation of the friend list search feature for the PeerChat application. The feature allows users to search for friends within their friend list only, ensuring privacy and a focused search experience.
 
 ## Key Features
 
